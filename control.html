@@ -55,6 +55,7 @@
   <div class="buttons">
     <button id="restartBtn">Restart</button>
     <button id="stopBtn">Stop</button>
+    <button id="reloadBtn" onclick="location.reload()">Reload</button>
   </div>
 
   <script>
@@ -83,9 +84,9 @@
         const data = await res.json()
         statusEl.textContent = data.mode
         if (data.mode === 'RUNNING') {
-          timerEl.textContent = formatTime(data.elapsedMs)
+          timerEl.textContent = formatTime(data.elapsedMs) + ' / ' + formatTime(data.lengthMs)
         } else {
-          timerEl.textContent = '00:00'
+          timerEl.textContent = '00:00 / ' + formatTime(data.lengthMs)
         }
       } catch (e) {
         // ignore
