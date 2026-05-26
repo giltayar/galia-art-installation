@@ -22,7 +22,7 @@
       new URL(videoParam)
       videoUrl = videoParam // absolute URL
     } catch {
-      videoUrl = `http://localhost:8080/${videoParam.replace(/^\//, '')}`
+      videoUrl = `http://localhost/storage/${videoParam}`
     }
 
     const player = document.getElementById('player')

@@ -40,7 +40,6 @@ fastify.get('/control', async (request, reply) => {
 
 // Poll endpoint - returns plain text command
 fastify.get('/poll', async (request, reply) => {
-  console.log('***** state', state)
   let command = 'NOP'
 
   if (state.mode === 'STOPPED') {
@@ -51,6 +50,7 @@ fastify.get('/poll', async (request, reply) => {
     command = `SEEK:${Math.floor(position)}`
   }
 
+  console.log(command)
   reply.type('text/plain').send(command)
 })
 
