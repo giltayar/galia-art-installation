@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Panel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #1a1a2e;
+      color: #eee;
+      gap: 2rem;
+    }
+    #timer {
+      font-size: 4rem;
+      font-variant-numeric: tabular-nums;
+    }
+    #status {
+      font-size: 1.2rem;
+      opacity: 0.7;
+    }
+    .buttons {
+      display: flex;
+      gap: 1.5rem;
+    }
+    button {
+      font-size: 1.5rem;
+      padding: 1rem 3rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #restartBtn {
+      background: #0f3460;
+      color: #eee;
+    }
+    #restartBtn:hover { background: #16213e; }
+    #stopBtn {
+      background: #e94560;
+      color: #fff;
+    }
+    #stopBtn:hover { background: #c0392b; }
+  </style>
+</head>
+<body>
+  <div id="timer">00:00</div>
+  <div id="status">STOPPED</div>
+  <div class="buttons">
+    <button id="restartBtn">Restart</button>
+    <button id="stopBtn">Stop</button>
+  </div>
+
+  <script>
+    const timerEl = document.getElementById('timer')
+    const statusEl = document.getElementById('status')
+
+    document.getElementById('restartBtn').addEventListener('click', async () => {
+      await fetch('/control/restart', { method: 'POST' })
+    })
+
+    document.getElementById('stopBtn').addEventListener('click', async () => {
+      await fetch('/control/stop', { method: 'POST' })
+    })
+
+    function formatTime(ms) {
+      const totalSec = Math.floor(ms / 1000)
+      const min = Math.floor(totalSec / 60)
+      const sec = totalSec % 60
+      return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    }
+
+    // Poll status every second
+    setInterval(async () => {
+      try {
+        const res = await fetch('/status')
+        const data = await res.json()
+        statusEl.textContent = data.mode
+        if (data.mode === 'RUNNING') {
+          timerEl.textContent = formatTime(data.elapsedMs)
+        } else {
+          timerEl.textContent = '00:00'
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 1000)
+  </script>
+</body>
+</html>
