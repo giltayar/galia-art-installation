@@ -20,6 +20,9 @@
     #timer {
       font-size: 4rem;
       font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
     }
     #status {
       font-size: 1.2rem;
@@ -47,11 +50,27 @@
       color: #fff;
     }
     #stopBtn:hover { background: #c0392b; }
+    #lengthInput {
+      font-size: 4rem;
+      padding: 0;
+      border: none;
+      border-bottom: 2px solid #444;
+      background: transparent;
+      color: #eee;
+      text-align: center;
+      width: 5ch;
+      font-variant-numeric: tabular-nums;
+      font-family: inherit;
+    }
+    #lengthInput:focus {
+      outline: none;
+      border-bottom-color: #e94560;
+    }
   </style>
 </head>
 <body>
-  <div id="timer">00:00</div>
-  <div id="status">STOPPED</div>
+  <div id="timer"><span id="elapsed"></span><span id="separator" style="display:none"> / </span><input id="lengthInput" type="text" value="" style="display:none" /></div>
+  <div id="status"></div>
   <div class="buttons">
     <button id="restartBtn">Restart</button>
     <button id="stopBtn">Stop</button>
@@ -59,8 +78,37 @@
   </div>
 
   <script>
-    const timerEl = document.getElementById('timer')
+    const timerEl = document.getElementById('elapsed')
+    const separatorEl = document.getElementById('separator')
     const statusEl = document.getElementById('status')
+    const lengthInput = document.getElementById('lengthInput')
+
+    function parseMmSs(str) {
+      const parts = str.split(':')
+      if (parts.length !== 2) return null
+      const min = parseInt(parts[0], 10)
+      const sec = parseInt(parts[1], 10)
+      if (isNaN(min) || isNaN(sec)) return null
+      return (min * 60 + sec) * 1000
+    }
+
+    function formatMmSs(ms) {
+      const totalSec = Math.floor(ms / 1000)
+      const min = Math.floor(totalSec / 60)
+      const sec = totalSec % 60
+      return `${min}:${String(sec).padStart(2, '0')}`
+    }
+
+    lengthInput.addEventListener('change', async () => {
+      const ms = parseMmSs(lengthInput.value)
+      if (ms && ms > 0) {
+        await fetch('/control/length', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lengthMs: ms })
+        })
+      }
+    })
 
     document.getElementById('restartBtn').addEventListener('click', async () => {
       await fetch('/control/restart', { method: 'POST' })
@@ -83,10 +131,15 @@
         const res = await fetch('/status')
         const data = await res.json()
         statusEl.textContent = data.mode
+        separatorEl.style.display = ''
+        lengthInput.style.display = ''
+        if (!lengthInput.matches(':focus')) {
+          lengthInput.value = formatMmSs(data.lengthMs)
+        }
         if (data.mode === 'RUNNING') {
-          timerEl.textContent = formatTime(data.elapsedMs) + ' / ' + formatTime(data.lengthMs)
+          timerEl.textContent = formatTime(data.elapsedMs)
         } else {
-          timerEl.textContent = '00:00 / ' + formatTime(data.lengthMs)
+          timerEl.textContent = '00:00'
         }
       } catch (e) {
         // ignore

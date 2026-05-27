@@ -1,40 +1,47 @@
 import Fastify from 'fastify'
 import fastifyStatic from '@fastify/static'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const fastify = Fastify({ logger: false })
 
 fastify.register(fastifyStatic, {
-  root: join(__dirname, 'public'),
+  root: fileURLToPath(new URL('./public', import.meta.url)),
   prefix: '/public/',
 })
 
-// --- Global playback state ---
-const state = {
-  mode: 'STOPPED', // 'RUNNING' | 'STOPPED'
-  startedAtEpochMs: 0,
-  lengthMs: 0,
+// --- State persistence ---
+const dataDir = new URL('./data/', import.meta.url)
+const stateFile = new URL('./data/state.json', import.meta.url)
+
+async function loadState() {
+  try {
+    const raw = await readFile(stateFile, 'utf-8')
+    return JSON.parse(raw)
+  } catch {
+    return { mode: 'STOPPED', startedAtEpochMs: 0, lengthMs: 4 * 60 * 1000 }
+  }
 }
+
+async function saveState() {
+  await mkdir(dataDir, { recursive: true })
+  await writeFile(stateFile, JSON.stringify(state, null, 2))
+}
+
+// --- Global playback state ---
+const state = await loadState()
 
 // --- Routes ---
 
 // Main video page
 fastify.get('/', async (request, reply) => {
-  const html = await readFile(join(__dirname, 'index.html'), 'utf-8')
+  const html = await readFile(new URL('./index.html', import.meta.url), 'utf-8')
   reply.type('text/html').send(html)
 })
 
 // Control page
 fastify.get('/control', async (request, reply) => {
-  const lengthParam = request.query.length
-  if (lengthParam) {
-    state.lengthMs = Number(lengthParam) * 1000 // Convert seconds to ms
-  }
-  const html = await readFile(join(__dirname, 'control.html'), 'utf-8')
+  const html = await readFile(new URL('./control.html', import.meta.url), 'utf-8')
   reply.type('text/html').send(html)
 })
 
@@ -71,11 +78,22 @@ fastify.get('/status', async (request, reply) => {
 fastify.post('/control/restart', async (request, reply) => {
   state.mode = 'RUNNING'
   state.startedAtEpochMs = Date.now()
+  await saveState()
   reply.send({ ok: true })
 })
 
 fastify.post('/control/stop', async (request, reply) => {
   state.mode = 'STOPPED'
+  await saveState()
+  reply.send({ ok: true })
+})
+
+fastify.post('/control/length', async (request, reply) => {
+  const { lengthMs } = request.body
+  if (typeof lengthMs === 'number' && lengthMs > 0) {
+    state.lengthMs = lengthMs
+    await saveState()
+  }
   reply.send({ ok: true })
 })
 
