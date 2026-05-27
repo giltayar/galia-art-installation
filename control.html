@@ -99,23 +99,28 @@
       return `${min}:${String(sec).padStart(2, '0')}`
     }
 
+    async function flushResponse(fetchPromise) {
+      const res = await fetchPromise
+      await res.text()
+    }
+
     lengthInput.addEventListener('change', async () => {
       const ms = parseMmSs(lengthInput.value)
       if (ms && ms > 0) {
-        await fetch('/control/length', {
+        await flushResponse(fetch('/control/length', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lengthMs: ms })
-        })
+        }))
       }
     })
 
     document.getElementById('restartBtn').addEventListener('click', async () => {
-      await fetch('/control/restart', { method: 'POST' })
+      await flushResponse(fetch('/control/restart', { method: 'POST' }))
     })
 
     document.getElementById('stopBtn').addEventListener('click', async () => {
-      await fetch('/control/stop', { method: 'POST' })
+      await flushResponse(fetch('/control/stop', { method: 'POST' }))
     })
 
     function formatTime(ms) {
