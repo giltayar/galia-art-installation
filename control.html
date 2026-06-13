@@ -74,6 +74,8 @@
   <div class="buttons">
     <button id="restartBtn">Restart</button>
     <button id="stopBtn">Stop</button>
+    <button id="reloadPlayerBtn">Reload Player</button>
+    <button id="debugStartBtn">Debug Start</button>
     <button id="reloadBtn" onclick="location.reload()">Reload</button>
   </div>
 
@@ -121,6 +123,14 @@
 
     document.getElementById('stopBtn').addEventListener('click', async () => {
       await flushResponse(fetch('/control/stop', { method: 'POST' }))
+    })
+
+    document.getElementById('reloadPlayerBtn').addEventListener('click', async () => {
+      await flushResponse(fetch('/control/reload-player', { method: 'POST' }))
+    })
+
+    document.getElementById('debugStartBtn').addEventListener('click', async () => {
+      await flushResponse(fetch('/control/debug-start', { method: 'POST' }))
     })
 
     function formatTime(ms) {

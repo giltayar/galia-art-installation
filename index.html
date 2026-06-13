@@ -8,10 +8,28 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     video { width: 100%; height: 100%; object-fit: contain; }
+    #debugPanel {
+      display: none;
+      position: fixed;
+      top: 0; right: 0;
+      width: 400px; height: 100%;
+      background: rgba(0,0,0,0.85);
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      overflow-y: auto;
+      padding: 8px;
+      z-index: 9999;
+    }
+    #debugPanel .entry {
+      border-bottom: 1px solid #333;
+      padding: 4px 0;
+    }
   </style>
 </head>
 <body>
   <video id="player"></video>
+  <div id="debugPanel"></div>
   <script>
     const params = new URLSearchParams(window.location.search)
     const videoParam = params.get('video') || ''
@@ -28,13 +46,35 @@
     const player = document.getElementById('player')
     player.src = videoUrl
 
+    const debugPanel = document.getElementById('debugPanel')
+    let debugMode = false
+
+    function addDebugEntry(command) {
+      if (!debugMode) return
+      const entry = document.createElement('div')
+      entry.className = 'entry'
+      const time = new Date().toLocaleTimeString()
+      const state = player.paused ? 'paused' : 'playing'
+      const seek = player.currentTime.toFixed(2)
+      entry.textContent = `[${time}] cmd=${command} | state=${state} | seek=${seek}s`
+      debugPanel.appendChild(entry)
+      debugPanel.scrollTop = debugPanel.scrollHeight
+    }
+
     // Poll /poll every second
     setInterval(async () => {
       try {
         const res = await fetch('/poll')
         const command = (await res.text()).trim()
 
-        if (command === 'STOP') {
+        if (command === 'DEBUG_START') {
+          debugMode = true
+          debugPanel.style.display = 'block'
+          addDebugEntry(command)
+        } else if (command === 'RELOAD') {
+          location.reload()
+          return
+        } else if (command === 'STOP') {
           if (!player.paused) player.pause()
         } else if (command.startsWith('SEEK:')) {
           const targetMs = parseInt(command.slice(5), 10)
@@ -46,10 +86,12 @@
             player.currentTime = targetSec
           }
           if (player.paused) {
-            player.play().catch(() => {})
+            addDebugEntry('Auto-resume after seek')
+            player.play().catch((error) => addDebugEntry(`error playing: ${error}`))
           }
         }
         // NOP: do nothing
+        addDebugEntry(command)
       } catch (e) {
         // network error, ignore
       }

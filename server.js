@@ -47,6 +47,15 @@ fastify.get('/control', async (request, reply) => {
 
 // Poll endpoint - returns plain text command
 fastify.get('/poll', async (request, reply) => {
+  if (state.pendingCommand) {
+    const command = state.pendingCommand
+    state.pendingCommand = null
+    await saveState()
+    console.log(command)
+    reply.type('text/plain').send(command)
+    return
+  }
+
   let command = 'NOP'
 
   if (state.mode === 'STOPPED') {
@@ -94,6 +103,18 @@ fastify.post('/control/length', async (request, reply) => {
     state.lengthMs = lengthMs
     await saveState()
   }
+  reply.send({ ok: true })
+})
+
+fastify.post('/control/reload-player', async (request, reply) => {
+  state.pendingCommand = 'RELOAD'
+  await saveState()
+  reply.send({ ok: true })
+})
+
+fastify.post('/control/debug-start', async (request, reply) => {
+  state.pendingCommand = 'DEBUG_START'
+  await saveState()
   reply.send({ ok: true })
 })
 

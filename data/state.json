@@ -1,5 +1,6 @@
 {
   "mode": "RUNNING",
-  "startedAtEpochMs": 1779857032110,
-  "lengthMs": 11000
+  "startedAtEpochMs": 1781336073550,
+  "lengthMs": 25000,
+  "pendingCommand": null
 }
