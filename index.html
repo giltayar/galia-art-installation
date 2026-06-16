@@ -1,101 +1,168 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video Player</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-    video { width: 100%; height: 100%; object-fit: contain; }
-    #debugPanel {
-      display: none;
-      position: fixed;
-      top: 0; right: 0;
-      width: 400px; height: 100%;
-      background: rgba(0,0,0,0.85);
-      color: #0f0;
-      font-family: monospace;
-      font-size: 12px;
-      overflow-y: auto;
-      padding: 8px;
-      z-index: 9999;
-    }
-    #debugPanel .entry {
-      border-bottom: 1px solid #333;
-      padding: 4px 0;
-    }
-  </style>
-</head>
-<body>
-  <video id="player"></video>
-  <div id="debugPanel"></div>
-  <script>
-    const params = new URLSearchParams(window.location.search)
-    const videoParam = params.get('video') || ''
-
-    // Resolve video URL
-    let videoUrl = ''
-    try {
-      new URL(videoParam)
-      videoUrl = videoParam // absolute URL
-    } catch {
-      videoUrl = `http://localhost/storage/emulated/0/Download/${videoParam}`
-    }
-
-    const player = document.getElementById('player')
-    player.src = videoUrl
-
-    const debugPanel = document.getElementById('debugPanel')
-    let debugMode = false
-
-    function addDebugEntry(command) {
-      if (!debugMode) return
-      const entry = document.createElement('div')
-      entry.className = 'entry'
-      const time = new Date().toLocaleTimeString()
-      const state = player.paused ? 'paused' : 'playing'
-      const seek = player.currentTime.toFixed(2)
-      entry.textContent = `[${time}] cmd=${command} | state=${state} | seek=${seek}s`
-      debugPanel.appendChild(entry)
-      debugPanel.scrollTop = debugPanel.scrollHeight
-    }
-
-    // Poll /poll every second
-    setInterval(async () => {
-      try {
-        const res = await fetch('/poll')
-        const command = (await res.text()).trim()
-
-        if (command === 'DEBUG_START') {
-          debugMode = true
-          debugPanel.style.display = 'block'
-          addDebugEntry(command)
-        } else if (command === 'RELOAD') {
-          location.reload()
-          return
-        } else if (command === 'STOP') {
-          if (!player.paused) player.pause()
-        } else if (command.startsWith('SEEK:')) {
-          const targetMs = parseInt(command.slice(5), 10)
-          const targetSec = targetMs / 1000
-          const currentSec = player.currentTime
-          const delta = Math.abs(currentSec - targetSec)
-
-          if (delta > 2) {
-            player.currentTime = targetSec
-          }
-          if (player.paused) {
-            addDebugEntry('Auto-resume after seek')
-            player.play().catch((error) => addDebugEntry(`error playing: ${error}`))
-          }
-        }
-        // NOP: do nothing
-        addDebugEntry(command)
-      } catch (e) {
-        // network error, ignore
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Player</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
-    }, 1000)
-  </script>
-</body>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      #debugPanel {
+        display: none;
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 400px;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        color: #0f0;
+        font-family: monospace;
+        font-size: 12px;
+        overflow-y: auto;
+        padding: 8px;
+        z-index: 9999;
+      }
+      #debugPanel .entry {
+        border-bottom: 1px solid #333;
+        padding: 4px 0;
+      }
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        color: #fff;
+        font-family: sans-serif;
+        font-size: 2rem;
+        z-index: 1000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">Loading...</div>
+    <video id="player" loop></video>
+    <div id="debugPanel"></div>
+    <script>
+      const movies = [
+        "Chidren 6.mov",
+        "Flesh 6.mov",
+        "Haha 6.mov",
+        "running 6.mov",
+        "Static 6.mov",
+      ];
+      const debugPanel = document.getElementById("debugPanel");
+      let debugMode = false;
+      (async function loading() {
+        try {
+          addDebugEntry("loading...");
+          let videoBlob = null;
+          for (const movie of movies) {
+            const videoUrl = `http://localhost/sdcard/Download/${encodeURIComponent(movie)}?rand=${Math.random()}`;
+            addDebugEntry(`trying ${movie}...`);
+            const res = await fetch(videoUrl).catch((e) => {
+              return { ok: false, status: 0 };
+            });
+            if (res.ok) {
+              videoBlob = await res.blob();
+              addDebugEntry(`loaded ${movie}!`);
+              break;
+            }
+            addDebugEntry(`${movie} returned ${res.status}, skipping`);
+          }
+          if (!videoBlob) {
+            addDebugEntry("no valid movie found");
+            return;
+          }
+
+          const player = document.getElementById("player");
+          player.src = URL.createObjectURL(videoBlob);
+          document.getElementById("loading").style.display = "none";
+
+          doIt();
+        } catch (e) {
+          addDebugEntry(e.toString());
+        }
+      })();
+
+      function addDebugEntry(command) {
+        if (!debugMode) return;
+        const entry = document.createElement("div");
+        entry.className = "entry";
+        const state = player.paused ? "paused" : "playing";
+        const seek = player.currentTime.toFixed(2);
+        entry.textContent = `${command} | state=${state} | seek=${seek}s | buf=${buffered()} | error=${player.error?.message}`;
+        debugPanel.appendChild(entry);
+        while (debugPanel.children.length > 40) {
+          debugPanel.removeChild(debugPanel.firstChild);
+        }
+        debugPanel.scrollTop = debugPanel.scrollHeight;
+      }
+
+      function buffered() {
+        const ranges = [];
+        for (let i = 0; i < player.buffered.length; i++) {
+          ranges.push(
+            `${player.buffered.start(i).toFixed(0)}-${player.buffered.end(i).toFixed(0)}`,
+          );
+        }
+        return ranges.join(", ");
+      }
+
+      async function doIt() {
+        try {
+          const res = await fetch("/poll");
+          const command = (await res.text()).trim();
+
+          if (command === "DEBUG_START") {
+            debugMode = true;
+            debugPanel.style.display = "block";
+            addDebugEntry(command);
+          } else if (command === "RELOAD") {
+            location.reload();
+            return;
+          } else if (command === "STOP") {
+            if (!player.paused) player.pause();
+          } else if (command.startsWith("SEEK:")) {
+            const targetMs = parseInt(command.slice(5), 10);
+            const targetSec = targetMs / 1000;
+            const currentSec = player.currentTime;
+            const delta = Math.abs(currentSec - targetSec);
+
+            if (delta > 2) {
+              player.currentTime = targetSec;
+            }
+            if (player.paused) {
+              addDebugEntry("Auto-resume after seek");
+              await player.play();
+            }
+          }
+          addDebugEntry(command);
+        } catch (e) {
+          addDebugEntry(e.toString());
+        }
+
+        setTimeout(doIt, 1000);
+      }
+    </script>
+  </body>
 </html>
